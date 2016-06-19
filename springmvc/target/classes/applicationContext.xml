@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.1.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.1.xsd
+        http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.1.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.1.xsd">
+
+	<import resource="applicationContext-config.xml" />
+
+	<!-- 定时任务配置文件 -->
+	<!-- <import resource="spring-scheduler.xml" /> -->
+
+	<mvc:annotation-driven />
+
+	<context:component-scan base-package="com.sofun.springmvc.service" />
+
+
+	<!-- dataSource config -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		init-method="init" destroy-method="close">
+		<!-- 基本属性 url、user、password -->
+		<property name="url" value="${druid.mysql.url}" />
+		<property name="username" value="${druid.mysql.username}" />
+		<property name="password" value="${druid.mysql.password}" />
+		<!-- 配置初始化大小、最小、最大 -->
+		<property name="initialSize" value="${druid.mysql.initialSize}" />
+		<property name="minIdle" value="${druid.mysql.minIdle}" />
+		<property name="maxActive" value="${druid.mysql.maxActive}" />
+		<!-- 配置获取连接等待超时的时间 -->
+		<property name="maxWait" value="60000" />
+		<!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+		<property name="timeBetweenEvictionRunsMillis" value="60000" />
+		<!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+		<property name="minEvictableIdleTimeMillis" value="300000" />
+		<property name="validationQuery" value="SELECT 'x'" />
+		<property name="testWhileIdle" value="true" />
+		<property name="testOnBorrow" value="false" />
+		<property name="testOnReturn" value="false" />
+		<!-- 打开PSCache，并且指定每个连接上PSCache的大小 -->
+		<property name="poolPreparedStatements" value="false" />
+		<property name="maxPoolPreparedStatementPerConnectionSize"
+			value="20" />
+		<!-- 配置监控统计拦截的filters -->
+		<property name="filters" value="stat" />
+	</bean>
+
+	<!-- sqlSessionFactory config -->
+	<bean id="sessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- dataSource属性指定要用到的连接池 -->
+		<property name="dataSource" ref="dataSource" />
+		<property name="mapperLocations" value="classpath*:mapper/*.xml" />
+	</bean>
+
+
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<!-- 配置方法的事务属性 -->
+	<tx:advice transaction-manager="transactionManager" id="txAdvice">
+		<tx:attributes>
+			<!-- 所有方法都使用事务 -->
+			<tx:method name="*" propagation="REQUIRED" />
+			<!-- 查询方法 读事务 -->
+			<tx:method name="get*" read-only="true" />
+			<tx:method name="load*" read-only="true" />
+			<tx:method name="find*" read-only="true" />
+			<tx:method name="query*" read-only="true" />
+			<tx:method name="select*" read-only="true" />
+		</tx:attributes>
+	</tx:advice>
+
+
+	<!-- 配置动态代理 -->
+	<aop:config>
+		<aop:pointcut
+			expression="execution(* com.sofun.springmvc.service.*Service.*(..))"
+			id="txPointcut" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut" />
+	</aop:config>
+
+	<!-- 自动扫描mapper，取代 单个mapper配置 -->
+	<bean id="mapperScanner" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.sofun.**.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sessionFactory"></property>
+	</bean>
+
+
+	<!-- flyway 配置 -->
+	<bean id="flyway" class="org.flywaydb.core.Flyway" init-method="migrate">
+		<property name="dataSource" ref="dataSource" />
+		<property name="locations" value="classpath:db/migration" />
+	</bean>
+
+</beans> 
